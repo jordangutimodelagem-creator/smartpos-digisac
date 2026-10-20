@@ -17,23 +17,36 @@ const client = axios.create({
   }
 });
 
+// Rota de busca de produtos corrigida
 app.get('/api/produtos', async (req, res) => {
   try {
     const { search } = req.query;
-    const response = await client.get('/products', {
-      params: { q: search }
-    });
-    res.json(response.data);
+    // Envia o parâmetro de busca apenas se preenchido
+    const params = search ? { name: search } : {};
+    
+    const response = await client.get('/products', { params });
+    const rawData = response.data;
+    
+    // Extrai a lista de produtos de forma segura
+    const listaProdutos = Array.isArray(rawData) 
+      ? rawData 
+      : (rawData?.data || rawData?.products || rawData?.items || []);
+
+    res.json(listaProdutos);
   } catch (error) {
-    console.error('Erro ao buscar produtos:', error?.response?.data || error.message);
-    res.status(500).json({ error: 'Falha ao buscar produtos na SmartPOS' });
+    console.error('Erro na API SmartPOS:', error?.response?.data || error.message);
+    res.status(500).json({ 
+      error: 'Falha ao buscar produtos na SmartPOS', 
+      details: error?.response?.data || error.message 
+    });
   }
 });
 
+// Rota para criação de vendas
 app.post('/api/vendas', async (req, res) => {
   try {
     const { items, status } = req.body;
-
+    
     const payload = {
       items: items.map(item => ({
         product_id: item.id,
