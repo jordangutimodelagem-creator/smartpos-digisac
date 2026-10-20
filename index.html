@@ -1,31 +1,145 @@
-async function searchProduct() {
-  const q = document.getElementById('searchInput').value;
-  if (q.length < 2) return;
-  
-  try {
-    const res = await fetch(`${API_URL}/produtos?search=${encodeURIComponent(q)}`);
-    const data = await res.json();
-    
-    // Garante que 'products' é sempre um array
-    products = Array.isArray(data) ? data : [];
-    
-    const select = document.getElementById('productSelect');
-    select.innerHTML = '';
-    
-    if (products.length === 0) {
-      const opt = document.createElement('option');
-      opt.textContent = 'Nenhum produto encontrado';
-      select.appendChild(opt);
-      return;
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDV SmartPOS - Digisac</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 10px; padding: 0; background-color: #f9f9f9; }
+    h3 { margin-top: 0; color: #333; font-size: 16px; }
+    .input-group { margin-bottom: 10px; }
+    input, select, button { width: 100%; padding: 8px; box-sizing: border-box; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; }
+    button { background-color: #0084FF; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 8px; }
+    button:hover { background-color: #0066cc; }
+    .cart { margin-top: 15px; background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+    .cart-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+    .total { font-weight: bold; font-size: 14px; text-align: right; margin-top: 10px; color: #222; }
+  </style>
+</head>
+<body>
+
+  <h3>PDV SmartPOS</h3>
+
+  <div class="input-group">
+    <label>Buscar Produto:</label>
+    <input type="text" id="searchInput" placeholder="Digite o nome..." onkeyup="searchProduct()">
+    <select id="productSelect"></select>
+  </div>
+
+  <div class="input-group">
+    <label>Quantidade:</label>
+    <input type="number" id="qtyInput" value="1" min="1">
+    <button onclick="addToCart()">Adicionar ao Pedido</button>
+  </div>
+
+  <div class="cart">
+    <h4>Itens no Pedido:</h4>
+    <div id="cartItems">Nenhum item adicionado.</div>
+    <div class="total" id="cartTotal">Total: R$ 0,00</div>
+  </div>
+
+  <div class="input-group" style="margin-top: 15px;">
+    <button onclick="createSale('OPEN')" style="background-color: #f39c12;">Criar Pedido em Aberto</button>
+    <button onclick="createSale('CLOSED')" style="background-color: #27ae60;">Finalizar e Emitir NFC-e</button>
+  </div>
+
+  <script>
+    const API_URL = 'https://smartpos-digisac.onrender.com/api';
+    let cart = [];
+    let products = [];
+
+    async function searchProduct() {
+      const q = document.getElementById('searchInput').value;
+      if (q.length < 2) return;
+      
+      try {
+        const res = await fetch(`${API_URL}/produtos?search=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        
+        products = Array.isArray(data) ? data : [];
+        
+        const select = document.getElementById('productSelect');
+        select.innerHTML = '';
+        
+        if (products.length === 0) {
+          const opt = document.createElement('option');
+          opt.textContent = 'Nenhum produto encontrado';
+          select.appendChild(opt);
+          return;
+        }
+
+        products.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id || p._id;
+          opt.textContent = `${p.name || p.title} - R$ ${p.price || p.sale_price || 0}`;
+          select.appendChild(opt);
+        });
+      } catch (e) {
+        console.error('Erro ao buscar produtos:', e);
+      }
     }
 
-    products.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id || p._id;
-      opt.textContent = `${p.name || p.title} - R$ ${p.price || p.sale_price || 0}`;
-      select.appendChild(opt);
-    });
-  } catch (e) {
-    console.error('Erro ao buscar produtos:', e);
-  }
-}
+    function addToCart() {
+      const select = document.getElementById('productSelect');
+      const productId = select.value;
+      const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+      const product = products.find(p => (p.id || p._id) == productId);
+
+      if (!product) return;
+
+      const price = product.price || product.sale_price || 0;
+      cart.push({ id: product.id || product._id, name: product.name || product.title, price: price, quantity: qty });
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cartItems');
+      const totalEl = document.getElementById('cartTotal');
+      if (cart.length === 0) {
+        container.innerHTML = 'Nenhum item adicionado.';
+        totalEl.textContent = 'Total: R$ 0,00';
+        return;
+      }
+
+      let total = 0;
+      container.innerHTML = '';
+      cart.forEach((item) => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        container.innerHTML += `<div class="cart-item">
+          <span>${item.quantity}x ${item.name}</span>
+          <span>R$ ${itemTotal.toFixed(2)}</span>
+        </div>`;
+      });
+
+      totalEl.textContent = `Total: R$ ${total.toFixed(2)}`;
+    }
+
+    async function createSale(status) {
+      if (cart.length === 0) {
+        alert('Adicione produtos ao pedido antes de enviar!');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/vendas`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: cart, status })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          alert(status === 'OPEN' ? 'Pedido aberto no caixa com sucesso!' : 'Venda finalizada com sucesso!');
+          cart = [];
+          renderCart();
+        } else {
+          alert('Erro ao registrar venda: ' + (result.error || 'Verifique os dados.'));
+        }
+      } catch (e) {
+        alert('Erro de conexão com o servidor.');
+      }
+    }
+  </script>
+</body>
+</html>
