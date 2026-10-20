@@ -1,4 +1,3 @@
-
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -14,58 +13,51 @@ const client = axios.create({
   baseURL: SMARTPOS_BASE_URL,
   headers: {
     'Authorization': `Bearer ${SMARTPOS_TOKEN}`,
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Content-Type': 'application/json'
   }
 });
 
-// Rota de busca de produtos corrigida e resiliente
 app.get('/api/produtos', async (req, res) => {
   try {
     const { search } = req.query;
+    // Tenta obter a lista de produtos
+    const response = await client.get('/products');
     
-    // Tenta primeiro com o parâmetro 'q' (padrão SmartPOS), depois sem parâmetros se necessário
-    let response;
-    try {
-      response = await client.get('/products', { params: search ? { q: search } : {} });
-    } catch (err) {
-      response = await client.get('/products');
+    let products = response.data;
+    if (products?.data) products = products.data;
+    if (products?.products) products = products.products;
+
+    if (!Array.isArray(products)) {
+      products = [];
     }
 
-    const rawData = response.data;
-    
-    // Extrai a lista de produtos de forma flexível
-    let listaProdutos = Array.isArray(rawData) 
-      ? rawData 
-      : (rawData?.data || rawData?.products || rawData?.items || []);
-
-    // Se a API não filtrar no servidor, filtra localmente pelo nome do produto
-    if (search && Array.isArray(listaProdutos)) {
+    // Filtra pelo termo digitado se fornecido
+    if (search && products.length > 0) {
       const term = search.toLowerCase();
-      const filtrados = listaProdutos.filter(p => 
+      products = products.filter(p => 
         (p.name && p.name.toLowerCase().includes(term)) ||
         (p.title && p.title.toLowerCase().includes(term))
       );
-      if (filtrados.length > 0) {
-        listaProdutos = filtrados;
-      }
     }
 
-    res.json(listaProdutos);
+    res.json(products);
   } catch (error) {
-    console.error('Erro na API SmartPOS:', error?.response?.data || error.message);
-    res.status(500).json({ 
-      error: 'Falha ao buscar produtos na SmartPOS', 
-      details: error?.response?.data || error.message 
+    const status = error.response?.status || 500;
+    const details = error.response?.data || error.message;
+    console.error('Erro na chamada SmartPOS:', status, details);
+    
+    // Retorna o motivo exato em JSON para vermos no console do navegador
+    res.status(status).json({ 
+      error: 'Erro na API SmartPOS', 
+      status: status,
+      details: details 
     });
   }
 });
 
-// Rota para criação de vendas
 app.post('/api/vendas', async (req, res) => {
   try {
     const { items, status } = req.body;
-    
     const payload = {
       items: items.map(item => ({
         product_id: item.id,
@@ -78,10 +70,9 @@ app.post('/api/vendas', async (req, res) => {
     const response = await client.post('/sales', payload);
     res.json({ success: true, data: response.data });
   } catch (error) {
-    console.error('Erro ao criar venda:', error?.response?.data || error.message);
-    res.status(500).json({ 
+    res.status(error.response?.status || 500).json({ 
       error: 'Falha ao criar venda na SmartPOS', 
-      details: error?.response?.data || error.message 
+      details: error.response?.data || error.message 
     });
   }
 });
