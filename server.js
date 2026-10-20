@@ -9,6 +9,7 @@ app.use(express.json());
 const SMARTPOS_TOKEN = process.env.SMARTPOS_TOKEN || 'EwFwjyG-N9LvbpYLfT2MShsB2eFUyRCVHPJwaY7em8N5UO3Fsw6gvv6jjKgAS80tCyqbHWMob8dZjJK6TBSE7A';
 const SMARTPOS_BASE_URL = 'https://api.smartpos.app/v1';
 
+// Tenta autenticação padrão Bearer (pode alterar para token direto se necessário)
 const client = axios.create({
   baseURL: SMARTPOS_BASE_URL,
   headers: {
@@ -20,7 +21,8 @@ const client = axios.create({
 app.get('/api/produtos', async (req, res) => {
   try {
     const { search } = req.query;
-    // Tenta obter a lista de produtos
+    
+    // Tenta a requisição principal
     const response = await client.get('/products');
     
     let products = response.data;
@@ -31,7 +33,6 @@ app.get('/api/produtos', async (req, res) => {
       products = [];
     }
 
-    // Filtra pelo termo digitado se fornecido
     if (search && products.length > 0) {
       const term = search.toLowerCase();
       products = products.filter(p => 
@@ -46,9 +47,8 @@ app.get('/api/produtos', async (req, res) => {
     const details = error.response?.data || error.message;
     console.error('Erro na chamada SmartPOS:', status, details);
     
-    // Retorna o motivo exato em JSON para vermos no console do navegador
     res.status(status).json({ 
-      error: 'Erro na API SmartPOS', 
+      error: 'Erro de permissão ou chave na API SmartPOS (403)', 
       status: status,
       details: details 
     });
