@@ -9,6 +9,8 @@
     h3 { margin-top: 0; color: #333; font-size: 16px; }
     .input-group { margin-bottom: 10px; }
     input, select, button { width: 100%; padding: 8px; box-sizing: border-box; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; }
+    .row { display: flex; gap: 10px; }
+    .row .input-group { flex: 1; }
     button { background-color: #0084FF; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 8px; }
     button:hover { background-color: #0066cc; }
     .cart { margin-top: 15px; background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
@@ -19,6 +21,17 @@
 <body>
 
   <h3>PDV SmartPOS</h3>
+
+  <div class="row">
+    <div class="input-group">
+      <label>Atendente:</label>
+      <input type="text" id="sellerInput" value="Jordan" placeholder="Nome do atendente...">
+    </div>
+    <div class="input-group">
+      <label>Cliente:</label>
+      <input type="text" id="customerInput" placeholder="Nome do cliente...">
+    </div>
+  </div>
 
   <div class="input-group">
     <label>Buscar Produto:</label>
@@ -57,7 +70,6 @@
         const data = await res.json();
         
         products = Array.isArray(data) ? data : [];
-        
         const select = document.getElementById('productSelect');
         select.innerHTML = '';
         
@@ -70,8 +82,9 @@
 
         products.forEach(p => {
           const opt = document.createElement('option');
-          opt.value = p.id || p._id;
-          opt.textContent = `${p.name || p.title} - R$ ${p.price || p.sale_price || 0}`;
+          opt.value = p.id;
+          const preco = Number(p.price || 0).toFixed(2);
+          opt.textContent = `${p.name} - R$ ${preco}`;
           select.appendChild(opt);
         });
       } catch (e) {
@@ -83,12 +96,12 @@
       const select = document.getElementById('productSelect');
       const productId = select.value;
       const qty = parseInt(document.getElementById('qtyInput').value) || 1;
-      const product = products.find(p => (p.id || p._id) == productId);
+      const product = products.find(p => p.id == productId);
 
       if (!product) return;
 
-      const price = product.price || product.sale_price || 0;
-      cart.push({ id: product.id || product._id, name: product.name || product.title, price: price, quantity: qty });
+      const price = Number(product.price || 0);
+      cart.push({ id: product.id, name: product.name, price: price, quantity: qty });
       renderCart();
     }
 
@@ -121,15 +134,18 @@
         return;
       }
 
+      const sellerName = document.getElementById('sellerInput').value;
+      const customerName = document.getElementById('customerInput').value;
+
       try {
         const response = await fetch(`${API_URL}/vendas`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: cart, status })
+          body: JSON.stringify({ items: cart, status, sellerName, customerName })
         });
 
         const result = await response.json();
-        if (result.success) {
+        if (response.ok && result.success) {
           alert(status === 'OPEN' ? 'Pedido aberto no caixa com sucesso!' : 'Venda finalizada com sucesso!');
           cart = [];
           renderCart();
