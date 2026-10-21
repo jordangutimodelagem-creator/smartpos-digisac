@@ -24,12 +24,14 @@
 
   <div class="row">
     <div class="input-group">
-      <label>Atendente:</label>
-      <input type="text" id="sellerInput" value="Jordan" placeholder="Nome do atendente...">
+      <label>Atendente / Fornecedor:</label>
+      <select id="sellerSelect">
+        <option value="">Carregando atendentes...</option>
+      </select>
     </div>
     <div class="input-group">
       <label>Cliente:</label>
-      <input type="text" id="customerInput" placeholder="Nome do cliente...">
+      <input type="text" id="customerInput" placeholder="Digite o nome do cliente...">
     </div>
   </div>
 
@@ -60,6 +62,29 @@
     const API_URL = 'https://smartpos-digisac.onrender.com/api';
     let cart = [];
     let products = [];
+
+    // Carrega os fornecedores/atendentes ao abrir a página
+    async function loadSuppliers() {
+      try {
+        const res = await fetch(`${API_URL}/fornecedores`);
+        const data = await res.json();
+        const select = document.getElementById('sellerSelect');
+        select.innerHTML = '<option value="">Selecione o atendente...</option>';
+        
+        if (Array.isArray(data)) {
+          data.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.companyName || s.fantasyName || 'Atendente';
+            opt.textContent = s.companyName || s.fantasyName || 'Atendente';
+            select.appendChild(opt);
+          });
+        }
+      } catch (e) {
+        console.error('Erro ao carregar atendentes:', e);
+      }
+    }
+
+    loadSuppliers();
 
     async function searchProduct() {
       const q = document.getElementById('searchInput').value;
@@ -95,8 +120,6 @@
     function addToCart() {
       const select = document.getElementById('productSelect');
       const productId = select.value;
-      
-      // Substitui vírgula por ponto para aceitar formato decimal brasileiro (ex: 1,555 -> 1.555)
       let qtyStr = document.getElementById('qtyInput').value.replace(',', '.');
       const qty = parseFloat(qtyStr) || 1;
       
@@ -137,7 +160,7 @@
         return;
       }
 
-      const sellerName = document.getElementById('sellerInput').value;
+      const sellerName = document.getElementById('sellerSelect').value;
       const customerName = document.getElementById('customerInput').value;
 
       try {
