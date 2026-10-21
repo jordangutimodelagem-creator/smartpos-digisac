@@ -12,17 +12,18 @@
     button:hover { background-color: #218838; }
     .table-container { background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 15px; }
     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; vertical-align: top; }
     th { background-color: #007bff; color: white; }
     tr:hover { background-color: #f1f1f1; }
     .btn-zap { background-color: #25d366; }
     .btn-zap:hover { background-color: #1ebe5d; }
+    ul { margin: 0; padding-left: 15px; font-size: 13px; }
   </style>
 </head>
 <body>
 
   <h2>Painel de Pedidos - SmartPOS</h2>
-  <p class="subtitle">Consulte os pedidos em aberto feitos no telemóvel para enviar pelo WhatsApp no computador.</p>
+  <p class="subtitle">Consulte os pedidos criados para enviar os detalhes ao cliente via WhatsApp.</p>
 
   <button onclick="loadSales()">🔄 Atualizar Lista de Pedidos</button>
 
@@ -32,14 +33,14 @@
         <tr>
           <th>Pedido</th>
           <th>Cliente</th>
-          <th>Atendente</th>
+          <th>Itens e Detalhes</th>
           <th>Total (R$)</th>
           <th>Data</th>
           <th>Ação</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="6" style="text-align: center;">Carregando pedidos em aberto...</td></tr>
+        <tr><td colspan="6" style="text-align: center;">Carregando pedidos...</td></tr>
       </tbody>
     </table>
   </div>
@@ -56,7 +57,7 @@
         const sales = await res.json();
 
         if (!Array.isArray(sales) || sales.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum pedido em aberto encontrado.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum pedido encontrado.</td></tr>';
           return;
         }
 
@@ -64,18 +65,29 @@
         sales.forEach(sale => {
           const tr = document.createElement('tr');
           
-          // Pega o código do pedido (ex: PN-18262) ou o ID se não houver
           const idPedido = sale.orderName || sale.code || `#${sale.id}` || 'N/D';
           const cliente = sale.customer?.companyName || sale.customer?.fantasyName || 'Cliente não identificado';
-          const atendente = sale.seller?.name || 'Não informado';
           const total = Number(sale.totalAmount || 0).toFixed(2);
           const data = sale.creationDate ? new Date(sale.creationDate).toLocaleString('pt-BR') : 'N/D';
 
+          // Monta a lista detalhada de itens para a tabela
+          let itensHtml = '<ul>';
+          if (sale.items && Array.isArray(sale.items)) {
+            sale.items.forEach(i => {
+              const nomeProd = i.product?.name || i.name || 'Produto';
+              const qtd = i.quantity || 1;
+              const precoItem = Number(i.usedPrice || i.price || 0).toFixed(2);
+              const subtotal = Number(qtd * precoItem).toFixed(2);
+              itensHtml += `<li><b>${qtd}x</b> ${nomeProd} — R$ ${precoItem} un (Sub: R$ ${subtotal})</li>`;
+            });
+          }
+          itensHtml += '</ul>';
+
           tr.innerHTML = `
-            <td><b>${idPedido}</b></td>
+            <td><b>${idPedido}</b><br><small style="color: #666;">${sale.status || 'Aberto'}</small></td>
             <td>${cliente}</td>
-            <td>${atendente}</td>
-            <td>R$ ${total}</td>
+            <td>${itensHtml}</td>
+            <td><b>R$ ${total}</b></td>
             <td>${data}</td>
             <td>
               <button class="btn-zap" onclick='copyOrderSummary(${JSON.stringify(sale)}, "${idPedido}")'>📋 Copiar Resumo</button>
@@ -93,25 +105,25 @@
       const cliente = sale.customer?.companyName || 'Cliente';
       const total = Number(sale.totalAmount || 0).toFixed(2);
       
-      let texto = `Olá *${cliente}*, segue o resumo do seu pedido *${idPedido}*:\n`;
+      let texto = `Olá *${cliente}*, segue o resumo detalhado do seu pedido *${idPedido}*:\n\n`;
       
       if (sale.items && Array.isArray(sale.items)) {
         sale.items.forEach(i => {
           const nomeProd = i.product?.name || i.name || 'Produto';
           const qtd = i.quantity || 1;
           const precoItem = Number(i.usedPrice || i.price || 0).toFixed(2);
-          texto += `- ${qtd}x ${nomeProd} (R$ ${precoItem})\n`;
+          const subtotal = Number(qtd * precoItem).toFixed(2);
+          texto += `▪️ ${qtd}x *${nomeProd}* - R$ ${precoItem} (Total: R$ ${subtotal})\n`;
         });
       }
       
-      texto += `\n*Total: R$ ${total}*`;
+      texto += `\n*VALOR TOTAL: R$ ${total}*`;
 
       navigator.clipboard.writeText(texto).then(() => {
-        alert('Resumo do pedido copiado com sucesso! Agora basta colar (Ctrl+V) no chat do WhatsApp da Digisac.');
+        alert('Resumo detalhado copiado com sucesso! Cole (Ctrl+V) no WhatsApp.');
       });
     }
 
-    // Carrega ao abrir a página
     loadSales();
   </script>
 </body>
