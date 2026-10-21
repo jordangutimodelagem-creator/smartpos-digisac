@@ -37,8 +37,13 @@ app.get('/api/pedidos-abertos', async (req, res) => {
       sales = [];
     }
 
-    // Retorna todas as vendas para visualizarmos e garantirmos que os pedidos aparecem
-    res.json(sales);
+    // Filtra estritamente apenas os pedidos que possuem o status "ABERTO" ou "OPEN"
+    const pedidosAbertos = sales.filter(s => {
+      const status = (s.status || '').trim().toUpperCase();
+      return status === 'ABERTO' || status === 'OPEN';
+    });
+
+    res.json(pedidosAbertos);
   } catch (error) {
     console.error('Erro ao buscar pedidos:', error.response?.data || error.message);
     res.status(500).json({ error: 'Erro ao buscar pedidos', details: error.response?.data || error.message });
