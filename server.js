@@ -6,58 +6,62 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const SMARTPOS_TOKEN = process.env.SMARTPOS_TOKEN || 'EwFwjyG-N9LvbpYLfT2MShsB2eFUyRCVHPJwaY7em8N5UO3Fsw6gvv6jjKgAS80tCyqbHWMob8dZjJK6TBSE7A';
+// Credenciais oficiais da SmartPOS baseadas na documentação da API
+const API_KEY_ID = process.env.SMARTPOS_KEY_ID || '6b1e922c-c6fa-43d5-a8f0-06272ad2211e';
+const API_KEY_SECRET = process.env.SMARTPOS_KEY_SECRET || 'SEU_KEY_SECRET_AQUI';
 const SMARTPOS_BASE_URL = 'https://api.smartpos.app/v1';
 
-// Tenta autenticação padrão Bearer (pode alterar para token direto se necessário)
 const client = axios.create({
   baseURL: SMARTPOS_BASE_URL,
   headers: {
-    'Authorization': `Bearer ${SMARTPOS_TOKEN}`,
-    'Content-Type': 'application/json'
+    'X-Api-Key-Id': API_KEY_ID,
+    'X-Api-Key-Secret': API_KEY_SECRET,
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   }
 });
 
+// Rota de busca de produtos (exige page e size conforme documentação)
 app.get('/api/produtos', async (req, res) => {
   try {
     const { search } = req.query;
     
-    // Tenta a requisição principal
-    const response = await client.get('/products');
+    const params = {
+      page: 1,
+      size: 50
+    };
     
-    let products = response.data;
-    if (products?.data) products = products.data;
-    if (products?.products) products = products.products;
-
-    if (!Array.isArray(products)) {
-      products = [];
+    if (search) {
+      params.name = search; // Filtro correto pelo nome do produto
     }
 
-    if (search && products.length > 0) {
-      const term = search.toLowerCase();
-      products = products.filter(p => 
-        (p.name && p.name.toLowerCase().includes(term)) ||
-        (p.title && p.title.toLowerCase().includes(term))
-      );
-    }
+    const response = await client.get('/products', { params });
+    const rawData = response.data;
+    
+    // A API retorna um objeto paginado contendo 'items'
+    const listaProdutos = Array.isArray(rawData) 
+      ? rawData 
+      : (rawData?.items || rawData?.data || []);
 
-    res.json(products);
+    res.json(listaProdutos);
   } catch (error) {
     const status = error.response?.status || 500;
     const details = error.response?.data || error.message;
-    console.error('Erro na chamada SmartPOS:', status, details);
+    console.error('Erro na API SmartPOS:', status, details);
     
     res.status(status).json({ 
-      error: 'Erro de permissão ou chave na API SmartPOS (403)', 
+      error: 'Falha ao buscar produtos na SmartPOS', 
       status: status,
       details: details 
     });
   }
 });
 
+// Rota para criação de vendas
 app.post('/api/vendas', async (req, res) => {
   try {
     const { items, status } = req.body;
+    
     const payload = {
       items: items.map(item => ({
         product_id: item.id,
@@ -70,9 +74,14 @@ app.post('/api/vendas', async (req, res) => {
     const response = await client.post('/sales', payload);
     res.json({ success: true, data: response.data });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ 
+    const status = error.response?.status || 500;
+    const details = error.response?.data || error.message;
+    console.error('Erro ao criar venda:', status, details);
+    
+    res.status(status).json({ 
       error: 'Falha ao criar venda na SmartPOS', 
-      details: error.response?.data || error.message 
+      status: status,
+      details: details 
     });
   }
 });
