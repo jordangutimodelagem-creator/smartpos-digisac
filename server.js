@@ -22,14 +22,24 @@ const client = axios.create({
 
 app.get('/api/pedidos-abertos', async (req, res) => {
   try {
+    // Tenta buscar especificamente na rota de pedidos/orçamentos em aberto se houver, 
+    // ou busca nas vendas gerais alargando o período e sem travar em filtros rígidos.
     const now = new Date();
     const past = new Date();
-    past.setDate(now.getDate() - 7);
+    past.setDate(now.getDate() - 15); // Últimos 15 dias
 
     const start = past.toISOString();
     const end = now.toISOString();
 
-    const response = await client.get(`/sales?start=${start}&end=${end}`);
+    // Vamos buscar na rota de vendas e também testar se há parâmetros de status aberto
+    let response;
+    try {
+      response = await client.get(`/sales?status=ABERTO&start=${start}&end=${end}`);
+    } catch (err) {
+      // Se der erro com o parâmetro, busca sem ele para inspecionar
+      response = await client.get(`/sales?start=${start}&end=${end}`);
+    }
+
     let sales = response.data;
     if (sales?.items) sales = sales.items;
 
@@ -37,13 +47,23 @@ app.get('/api/pedidos-abertos', async (req, res) => {
       sales = [];
     }
 
-    // Filtra estritamente apenas os pedidos que possuem o status "ABERTO" ou "OPEN"
+    // Filtra de forma inteligente para aceitar tanto status ABERTO, OPEN, quanto pedidos com prefixo PN-
     const pedidosAbertos = sales.filter(s => {
       const status = (s.status || '').trim().toUpperCase();
-      return status === 'ABERTO' || status === 'OPEN';
+      const orderName = (s.orderName || s.code || '').trim().toUpperCase();
+      
+      return (
+        status === 'ABERTO' || 
+        status === 'OPEN' || 
+        orderName.includes('PN-') ||
+        status.includes('ABERT')
+      );
     });
 
-    res.json(pedidosAbertos);
+    // Se mesmo assim vier vazio, mandamos todas as vendas recentes para não ficar em branco e podermos ver os campos
+    const resultadoFinal = pedidosAbertos.length > 0 ? pedidosAbertos : sales;
+
+    res.json(resultadoFinal);
   } catch (error) {
     console.error('Erro ao buscar pedidos:', error.response?.data || error.message);
     res.status(500).json({ error: 'Erro ao buscar pedidos', details: error.response?.data || error.message });
