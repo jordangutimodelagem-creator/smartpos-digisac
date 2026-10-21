@@ -68,10 +68,10 @@
           const tr = document.createElement('tr');
           
           const idPedido = sale.orderName || sale.code || `#${sale.id}` || 'N/D';
-          const cliente = sale.customer?.companyName || sale.customer?.fantasyName || 'Cliente não identificado';
-          const status = sale.status || 'Aberto';
+          const cliente = sale.customerName || sale.customer?.companyName || 'Cliente não identificado';
+          const status = sale.orderStatus || sale.status || 'OPENED';
           const total = Number(sale.totalAmount || 0).toFixed(2);
-          const data = sale.creationDate ? new Date(sale.creationDate).toLocaleString('pt-BR') : 'N/D';
+          const data = sale.createDate ? new Date(sale.createDate).toLocaleString('pt-BR') : 'N/D';
 
           let itensHtml = '<ul>';
           if (sale.items && Array.isArray(sale.items)) {
@@ -82,6 +82,8 @@
               const subtotal = Number(qtd * precoItem).toFixed(2);
               itensHtml += `<li><b>${qtd}x</b> ${nomeProd} — R$ ${precoItem} un (Sub: R$ ${subtotal})</li>`;
             });
+          } else {
+            itensHtml += '<li>Detalhes na SmartPOS</li>';
           }
           itensHtml += '</ul>';
 
@@ -105,7 +107,7 @@
     }
 
     function copyOrderSummary(sale, idPedido) {
-      const cliente = sale.customer?.companyName || 'Cliente';
+      const cliente = sale.customerName || sale.customer?.companyName || 'Cliente';
       const total = Number(sale.totalAmount || 0).toFixed(2);
       
       let texto = `Olá *${cliente}*, segue o resumo detalhado do seu pedido *${idPedido}*:\n\n`;
@@ -118,6 +120,8 @@
           const subtotal = Number(qtd * precoItem).toFixed(2);
           texto += `▪️ ${qtd}x *${nomeProd}* - R$ ${precoItem} (Total: R$ ${subtotal})\n`;
         });
+      } else {
+        texto += `▪️ Pedido de Balcão / App\n`;
       }
       
       texto += `\n*VALOR TOTAL: R$ ${total}*`;
