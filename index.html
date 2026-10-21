@@ -18,12 +18,13 @@
     .btn-zap { background-color: #25d366; }
     .btn-zap:hover { background-color: #1ebe5d; }
     ul { margin: 0; padding-left: 15px; font-size: 13px; }
+    .badge-aberto { background-color: #ffc107; color: #000; padding: 3px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
   </style>
 </head>
 <body>
 
   <h2>Painel de Pedidos - SmartPOS</h2>
-  <p class="subtitle">Consulte os pedidos criados para enviar os detalhes ao cliente via WhatsApp.</p>
+  <p class="subtitle">Consulte os pedidos em aberto para enviar os detalhes ao cliente via WhatsApp.</p>
 
   <button onclick="loadSales()">🔄 Atualizar Lista de Pedidos</button>
 
@@ -33,6 +34,7 @@
         <tr>
           <th>Pedido</th>
           <th>Cliente</th>
+          <th>Status</th>
           <th>Itens e Detalhes</th>
           <th>Total (R$)</th>
           <th>Data</th>
@@ -40,7 +42,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="6" style="text-align: center;">Carregando pedidos...</td></tr>
+        <tr><td colspan="7" style="text-align: center;">Carregando pedidos em aberto...</td></tr>
       </tbody>
     </table>
   </div>
@@ -50,14 +52,14 @@
 
     async function loadSales() {
       const tbody = document.querySelector('#salesTable tbody');
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Buscando pedidos...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Buscando pedidos...</td></tr>';
 
       try {
         const res = await fetch(`${API_URL}/pedidos-abertos`);
         const sales = await res.json();
 
         if (!Array.isArray(sales) || sales.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum pedido encontrado.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum pedido em aberto encontrado.</td></tr>';
           return;
         }
 
@@ -67,10 +69,10 @@
           
           const idPedido = sale.orderName || sale.code || `#${sale.id}` || 'N/D';
           const cliente = sale.customer?.companyName || sale.customer?.fantasyName || 'Cliente não identificado';
+          const status = sale.status || 'Aberto';
           const total = Number(sale.totalAmount || 0).toFixed(2);
           const data = sale.creationDate ? new Date(sale.creationDate).toLocaleString('pt-BR') : 'N/D';
 
-          // Monta a lista detalhada de itens para a tabela
           let itensHtml = '<ul>';
           if (sale.items && Array.isArray(sale.items)) {
             sale.items.forEach(i => {
@@ -84,8 +86,9 @@
           itensHtml += '</ul>';
 
           tr.innerHTML = `
-            <td><b>${idPedido}</b><br><small style="color: #666;">${sale.status || 'Aberto'}</small></td>
+            <td><b>${idPedido}</b></td>
             <td>${cliente}</td>
+            <td><span class="badge-aberto">${status}</span></td>
             <td>${itensHtml}</td>
             <td><b>R$ ${total}</b></td>
             <td>${data}</td>
@@ -97,7 +100,7 @@
         });
       } catch (e) {
         console.error(e);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Erro ao conectar com o servidor.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">Erro ao conectar com o servidor.</td></tr>';
       }
     }
 
