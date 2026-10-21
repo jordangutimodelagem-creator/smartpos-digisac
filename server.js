@@ -24,11 +24,12 @@ app.get('/api/pedidos-abertos', async (req, res) => {
   try {
     const now = new Date();
     const past = new Date();
-    past.setDate(now.getDate() - 7);
+    past.setDate(now.getDate() - 30); // Últimos 30 dias para garantir
 
     const start = past.toISOString();
     const end = now.toISOString();
 
+    // Tenta buscar as vendas com os parâmetros oficiais
     const response = await client.get(`/sales?start=${start}&end=${end}`);
     let sales = response.data;
     if (sales?.items) sales = sales.items;
@@ -37,17 +38,16 @@ app.get('/api/pedidos-abertos', async (req, res) => {
       sales = [];
     }
 
-    // Filtra apenas os pedidos em aberto (status OPEN ou similar, ou sem nota fiscal finalizada)
-    const pedidosAbertos = sales.filter(s => {
-      const status = (s.status || s.statusNf || '').toUpperCase();
-      // Considera aberto se o status for OPEN ou se não tiver nota fiscal/sucesso definitivo
-      return status === 'OPEN' || status === 'PROCESSING' || (!s.numberInvoice && status !== 'SUCCESS');
-    });
+    // Mostra no console do Render os dados brutos para sabermos exatamente o campo de status
+    if (sales.length > 0) {
+      console.log('Exemplo de venda recebida:', JSON.stringify(sales[0], null, 2));
+    }
 
-    res.json(pedidosAbertos);
+    // Retorna todas as vendas para exibirmos e validarmos na tela
+    res.json(sales);
   } catch (error) {
     console.error('Erro ao buscar pedidos:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Não se pudieron cargar los pedidos', details: error.response?.data || error.message });
+    res.status(500).json({ error: 'Erro ao buscar pedidos', details: error.response?.data || error.message });
   }
 });
 
