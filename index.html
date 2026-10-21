@@ -17,7 +17,6 @@
     tr:hover { background-color: #f1f1f1; }
     .btn-zap { background-color: #25d366; }
     .btn-zap:hover { background-color: #1ebe5d; }
-    ul { margin: 0; padding-left: 15px; font-size: 13px; }
     .badge-aberto { background-color: #ffc107; color: #000; padding: 3px 6px; border-radius: 3px; font-size: 11px; font-weight: bold; }
   </style>
 </head>
@@ -35,14 +34,13 @@
           <th>Pedido</th>
           <th>Cliente</th>
           <th>Status</th>
-          <th>Itens e Detalhes</th>
           <th>Total (R$)</th>
           <th>Data</th>
           <th>Ação</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="7" style="text-align: center;">Carregando pedidos em aberto...</td></tr>
+        <tr><td colspan="6" style="text-align: center;">Carregando pedidos em aberto...</td></tr>
       </tbody>
     </table>
   </div>
@@ -52,14 +50,14 @@
 
     async function loadSales() {
       const tbody = document.querySelector('#salesTable tbody');
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Buscando pedidos...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Buscando pedidos...</td></tr>';
 
       try {
         const res = await fetch(`${API_URL}/pedidos-abertos`);
         const sales = await res.json();
 
         if (!Array.isArray(sales) || sales.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Nenhum pedido em aberto encontrado.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum pedido encontrado.</td></tr>';
           return;
         }
 
@@ -73,25 +71,10 @@
           const total = Number(sale.totalAmount || 0).toFixed(2);
           const data = sale.createDate ? new Date(sale.createDate).toLocaleString('pt-BR') : 'N/D';
 
-          let itensHtml = '<ul>';
-          if (sale.items && Array.isArray(sale.items)) {
-            sale.items.forEach(i => {
-              const nomeProd = i.product?.name || i.name || 'Produto';
-              const qtd = i.quantity || 1;
-              const precoItem = Number(i.usedPrice || i.price || 0).toFixed(2);
-              const subtotal = Number(qtd * precoItem).toFixed(2);
-              itensHtml += `<li><b>${qtd}x</b> ${nomeProd} — R$ ${precoItem} un (Sub: R$ ${subtotal})</li>`;
-            });
-          } else {
-            itensHtml += '<li>Detalhes na SmartPOS</li>';
-          }
-          itensHtml += '</ul>';
-
           tr.innerHTML = `
             <td><b>${idPedido}</b></td>
             <td>${cliente}</td>
             <td><span class="badge-aberto">${status}</span></td>
-            <td>${itensHtml}</td>
             <td><b>R$ ${total}</b></td>
             <td>${data}</td>
             <td>
@@ -102,32 +85,20 @@
         });
       } catch (e) {
         console.error(e);
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">Erro ao conectar com o servidor.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Erro ao conectar com o servidor.</td></tr>';
       }
     }
 
     function copyOrderSummary(sale, idPedido) {
-      const cliente = sale.customerName || sale.customer?.companyName || 'Cliente';
+      const cliente = sale.customerName || 'Cliente';
       const total = Number(sale.totalAmount || 0).toFixed(2);
       
-      let texto = `Olá *${cliente}*, segue o resumo detalhado do seu pedido *${idPedido}*:\n\n`;
-      
-      if (sale.items && Array.isArray(sale.items)) {
-        sale.items.forEach(i => {
-          const nomeProd = i.product?.name || i.name || 'Produto';
-          const qtd = i.quantity || 1;
-          const precoItem = Number(i.usedPrice || i.price || 0).toFixed(2);
-          const subtotal = Number(qtd * precoItem).toFixed(2);
-          texto += `▪️ ${qtd}x *${nomeProd}* - R$ ${precoItem} (Total: R$ ${subtotal})\n`;
-        });
-      } else {
-        texto += `▪️ Pedido de Balcão / App\n`;
-      }
-      
+      let texto = `Olá *${cliente}*, segue o resumo do seu pedido *${idPedido}*:\n\n`;
+      texto += `▪️ Pedido de Balcão / App\n`;
       texto += `\n*VALOR TOTAL: R$ ${total}*`;
 
       navigator.clipboard.writeText(texto).then(() => {
-        alert('Resumo detalhado copiado com sucesso! Cole (Ctrl+V) no WhatsApp.');
+        alert('Resumo copiado com sucesso! Cole (Ctrl+V) no WhatsApp.');
       });
     }
 
