@@ -37,19 +37,10 @@ app.get('/api/pedidos-abertos', async (req, res) => {
       sales = [];
     }
 
-    // Filtra de forma ampla para capturar qualquer pedido que esteja em aberto ou não finalizado
+    // Filtra estritamente apenas os pedidos com status "ABERTO" ou "OPEN"
     const pedidosAbertos = sales.filter(s => {
       const status = (s.status || s.statusNf || '').toUpperCase();
-      const orderName = (s.orderName || '').toUpperCase();
-      
-      // Retorna se o status for explícito ou se não tiver faturação/sucesso definitivo
-      return (
-        status.includes('ABERTO') || 
-        status === 'OPEN' || 
-        status === 'PROCESSING' || 
-        orderName.includes('PN-') ||
-        (!s.numberInvoice && status !== 'SUCCESS' && status !== 'FINALIZADO')
-      );
+      return status === 'ABERTO' || status === 'OPEN';
     });
 
     res.json(pedidosAbertos);
