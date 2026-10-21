@@ -29,7 +29,14 @@ app.get('/api/pedidos-abertos', async (req, res) => {
     const start = past.toISOString();
     const end = now.toISOString();
 
-    const response = await client.get(`/sales?start=${start}&end=${end}`);
+    // Tenta buscar diretamente filtrando por status OPENED se a API aceitar, ou busca todas e filtra
+    let response;
+    try {
+      response = await client.get(`/sales?orderStatus=OPENED&start=${start}&end=${end}`);
+    } catch (e) {
+      response = await client.get(`/sales?start=${start}&end=${end}`);
+    }
+
     let sales = response.data;
     if (sales?.items) sales = sales.items;
 
@@ -37,17 +44,10 @@ app.get('/api/pedidos-abertos', async (req, res) => {
       sales = [];
     }
 
-    // Filtra estritamente pelos status abertos da API (OPENED, OPEN, ABERTO)
+    // Filtra estritamente apenas os pedidos com orderStatus OPENED
     const pedidosAbertos = sales.filter(s => {
       const status = (s.orderStatus || s.status || '').trim().toUpperCase();
-      const orderName = (s.orderName || s.code || '').trim().toUpperCase();
-      
-      return (
-        status === 'OPENED' || 
-        status === 'ABERTO' || 
-        status === 'OPEN' || 
-        orderName.includes('PN-') && status !== 'FINISHED' && status !== 'CANCELED'
-      );
+      return status === 'OPENED' || status === 'ABERTO' || status === 'OPEN';
     });
 
     res.json(pedidosAbertos);
