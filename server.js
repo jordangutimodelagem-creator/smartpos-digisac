@@ -20,7 +20,6 @@ const client = axios.create({
   }
 });
 
-// Busca de produtos mapeando o sellValue correto
 app.get('/api/produtos', async (req, res) => {
   try {
     const { search } = req.query;
@@ -32,11 +31,11 @@ app.get('/api/produtos', async (req, res) => {
     
     let lista = Array.isArray(rawData) ? rawData : (rawData?.items || rawData?.data || []);
     
-    // Padroniza o preço para sellValue
     const produtosFormatados = lista.map(p => ({
       id: p.id,
       name: p.name || p.description,
-      price: p.sellValue || p.price || 0
+      price: p.sellValue || p.price || 0,
+      isFractional: p.isFractional || false
     }));
 
     res.json(produtosFormatados);
@@ -45,24 +44,23 @@ app.get('/api/produtos', async (req, res) => {
   }
 });
 
-// Criação de vendas com suporte a Cliente e Atendente
 app.post('/api/vendas', async (req, res) => {
   try {
     const { items, status, customerName, sellerName } = req.body;
     
     const payload = {
       items: items.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity,
-        price: item.price
+        product_id: Number(item.id),
+        quantity: parseFloat(item.quantity), // Garante suporte a decimais (metros)
+        price: parseFloat(item.price)
       })),
       status: status || 'OPEN'
     };
 
-    if (customerName) {
+    if (customerName && customerName.trim() !== '') {
       payload.customer = { companyName: customerName, type: 'CLIENTE', personType: 'FISICA' };
     }
-    if (sellerName) {
+    if (sellerName && sellerName.trim() !== '') {
       payload.seller = { name: sellerName };
     }
 
