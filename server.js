@@ -44,20 +44,7 @@ app.get('/api/produtos', async (req, res) => {
   }
 });
 
-// Buscar fornecedores/atendentes de forma segura
-app.get('/api/fornecedores', async (req, res) => {
-  try {
-    const response = await client.get('/customers/suppliers');
-    let data = response.data;
-    if (data?.items) data = data.items;
-    res.json(Array.isArray(data) ? data : []);
-  } catch (error) {
-    console.error('Erro ao buscar fornecedores:', error.response?.data || error.message);
-    res.json([]); // Retorna array vazio para não travar o front
-  }
-});
-
-// Criar Venda
+// Criar Venda com payload limpo e seguro
 app.post('/api/vendas', async (req, res) => {
   try {
     const { items, status, customerName, sellerName } = req.body;
@@ -78,11 +65,19 @@ app.post('/api/vendas', async (req, res) => {
       status: status || 'OPEN'
     };
 
+    // Só adiciona cliente ou vendedor se o usuário realmente preencheu algo
     if (customerName && customerName.trim() !== '') {
-      payload.customer = { companyName: customerName, type: 'CLIENTE', personType: 'FISICA', cpfCnpj: '' };
+      payload.customer = {
+        companyName: customerName.trim(),
+        type: 'CLIENTE',
+        personType: 'FISICA'
+      };
     }
+
     if (sellerName && sellerName.trim() !== '') {
-      payload.seller = { name: sellerName };
+      payload.seller = {
+        name: sellerName.trim()
+      };
     }
 
     const response = await client.post('/sales', payload);
