@@ -20,11 +20,8 @@ const client = axios.create({
   }
 });
 
-// Ruta para listar ventas recientes (útil para ver pedidos abiertos o completados)
 app.get('/api/pedidos-abertos', async (req, res) => {
   try {
-    // La API de SmartPOS exige fechas 'start' y 'end' para listar ventas. 
-    // Usaremos los últimos 7 días por defecto.
     const now = new Date();
     const past = new Date();
     past.setDate(now.getDate() - 7);
@@ -40,10 +37,17 @@ app.get('/api/pedidos-abertos', async (req, res) => {
       sales = [];
     }
 
-    res.json(sales);
+    // Filtra apenas os pedidos em aberto (status OPEN ou similar, ou sem nota fiscal finalizada)
+    const pedidosAbertos = sales.filter(s => {
+      const status = (s.status || s.statusNf || '').toUpperCase();
+      // Considera aberto se o status for OPEN ou se não tiver nota fiscal/sucesso definitivo
+      return status === 'OPEN' || status === 'PROCESSING' || (!s.numberInvoice && status !== 'SUCCESS');
+    });
+
+    res.json(pedidosAbertos);
   } catch (error) {
-    console.error('Error al buscar pedidos:', error.response?.data || error.message);
-    res.status(500).json({ error: 'No se pudieron cargar los pedidos', details: error.response?.data || error.message });
+    console.error('Erro ao buscar pedidos:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Não se pudieron cargar los pedidos', details: error.response?.data || error.message });
   }
 });
 
