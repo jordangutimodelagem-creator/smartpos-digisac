@@ -20,74 +20,30 @@ const client = axios.create({
   }
 });
 
-// Buscar produtos
-app.get('/api/produtos', async (req, res) => {
+// Ruta para listar ventas recientes (útil para ver pedidos abiertos o completados)
+app.get('/api/pedidos-abertos', async (req, res) => {
   try {
-    const { search } = req.query;
-    const params = { page: 1, size: 100 };
-    if (search) params.name = search;
+    // La API de SmartPOS exige fechas 'start' y 'end' para listar ventas. 
+    // Usaremos los últimos 7 días por defecto.
+    const now = new Date();
+    const past = new Date();
+    past.setDate(now.getDate() - 7);
 
-    const response = await client.get('/products', { params });
-    const rawData = response.data;
-    let lista = Array.isArray(rawData) ? rawData : (rawData?.items || rawData?.data || []);
-    
-    const produtosFormatados = lista.map(p => ({
-      id: p.id,
-      name: p.name || p.description,
-      price: p.sellValue || p.price || 0,
-      isFractional: p.isFractional || false
-    }));
+    const start = past.toISOString();
+    const end = now.toISOString();
 
-    res.json(produtosFormatados);
-  } catch (error) {
-    res.status(error.response?.status || 500).json({ error: 'Erro ao buscar produtos', details: error.response?.data || error.message });
-  }
-});
+    const response = await client.get(`/sales?start=${start}&end=${end}`);
+    let sales = response.data;
+    if (sales?.items) sales = sales.items;
 
-// Criar Venda com payload limpo e seguro
-app.post('/api/vendas', async (req, res) => {
-  try {
-    const { items, status, customerName, sellerName } = req.body;
-    
-    // Gera identificador único universal (UUID v4)
-    const uniqueId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-
-    const payload = {
-      uniqueIdentifier: uniqueId,
-      items: items.map(item => ({
-        product_id: Number(item.id),
-        quantity: parseFloat(item.quantity),
-        price: parseFloat(item.price)
-      })),
-      status: status || 'OPEN'
-    };
-
-    // Só adiciona cliente ou vendedor se o usuário realmente preencheu algo
-    if (customerName && customerName.trim() !== '') {
-      payload.customer = {
-        companyName: customerName.trim(),
-        type: 'CLIENTE',
-        personType: 'FISICA'
-      };
+    if (!Array.isArray(sales)) {
+      sales = [];
     }
 
-    if (sellerName && sellerName.trim() !== '') {
-      payload.seller = {
-        name: sellerName.trim()
-      };
-    }
-
-    const response = await client.post('/sales', payload);
-    res.json({ success: true, data: response.data });
+    res.json(sales);
   } catch (error) {
-    console.error('Erro ao criar venda:', error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ 
-      error: 'Falha ao criar venda na SmartPOS', 
-      details: error.response?.data || error.message 
-    });
+    console.error('Error al buscar pedidos:', error.response?.data || error.message);
+    res.status(500).json({ error: 'No se pudieron cargar los pedidos', details: error.response?.data || error.message });
   }
 });
 
