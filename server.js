@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const { v4: uuidv4 } = require('uuid'); // Se preferir sem instalar uuid, podemos gerar manual
 
 const app = express();
 app.use(cors());
@@ -20,6 +21,7 @@ const client = axios.create({
   }
 });
 
+// Buscar produtos
 app.get('/api/produtos', async (req, res) => {
   try {
     const { search } = req.query;
@@ -28,7 +30,6 @@ app.get('/api/produtos', async (req, res) => {
 
     const response = await client.get('/products', { params });
     const rawData = response.data;
-    
     let lista = Array.isArray(rawData) ? rawData : (rawData?.items || rawData?.data || []);
     
     const produtosFormatados = lista.map(p => ({
@@ -44,14 +45,32 @@ app.get('/api/produtos', async (req, res) => {
   }
 });
 
+// Buscar fornecedores (atendentes)
+app.get('/api/fornecedores', async (req, res) => {
+  try {
+    const response = await client.get('/customers/suppliers');
+    res.json(response.data || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar fornecedores' });
+  }
+});
+
+// Criar Venda corrigida com uniqueIdentifier e suporte a cadastros
 app.post('/api/vendas', async (req, res) => {
   try {
     const { items, status, customerName, sellerName } = req.body;
     
+    // Gera um identificador único universal (UUID v4 simples) para atender à exigência da SmartPOS
+    const uniqueId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+
     const payload = {
+      uniqueIdentifier: uniqueId,
       items: items.map(item => ({
         product_id: Number(item.id),
-        quantity: parseFloat(item.quantity), // Garante suporte a decimais (metros)
+        quantity: parseFloat(item.quantity),
         price: parseFloat(item.price)
       })),
       status: status || 'OPEN'
