@@ -22,7 +22,7 @@
 <body>
 
   <h2>Painel de Pedidos - SmartPOS</h2>
-  <p class="subtitle">Consulte os pedidos feitos no celular para enviar pelo WhatsApp no computador.</p>
+  <p class="subtitle">Consulte os pedidos em aberto feitos no telemóvel para enviar pelo WhatsApp no computador.</p>
 
   <button onclick="loadSales()">🔄 Atualizar Lista de Pedidos</button>
 
@@ -30,16 +30,16 @@
     <table id="salesTable">
       <thead>
         <tr>
-          <th>ID / Pedido</th>
+          <th>Pedido</th>
           <th>Cliente</th>
-          <th>Atendedor</th>
+          <th>Atendente</th>
           <th>Total (R$)</th>
           <th>Data</th>
           <th>Ação</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td colspan="6" style="text-align: center;">Carregando pedidos...</td></tr>
+        <tr><td colspan="6" style="text-align: center;">Carregando pedidos em aberto...</td></tr>
       </tbody>
     </table>
   </div>
@@ -56,7 +56,7 @@
         const sales = await res.json();
 
         if (!Array.isArray(sales) || sales.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum pedido encontrado nos últimos dias.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum pedido em aberto encontrado.</td></tr>';
           return;
         }
 
@@ -64,20 +64,21 @@
         sales.forEach(sale => {
           const tr = document.createElement('tr');
           
-          const id = sale.id || 'N/D';
+          // Pega o código do pedido (ex: PN-18262) ou o ID se não houver
+          const idPedido = sale.orderName || sale.code || `#${sale.id}` || 'N/D';
           const cliente = sale.customer?.companyName || sale.customer?.fantasyName || 'Cliente não identificado';
           const atendente = sale.seller?.name || 'Não informado';
           const total = Number(sale.totalAmount || 0).toFixed(2);
           const data = sale.creationDate ? new Date(sale.creationDate).toLocaleString('pt-BR') : 'N/D';
 
           tr.innerHTML = `
-            <td><b>#${id}</b></td>
+            <td><b>${idPedido}</b></td>
             <td>${cliente}</td>
             <td>${atendente}</td>
             <td>R$ ${total}</td>
             <td>${data}</td>
             <td>
-              <button class="btn-zap" onclick='copyOrderSummary(${JSON.stringify(sale)})'>📋 Copiar Resumo</button>
+              <button class="btn-zap" onclick='copyOrderSummary(${JSON.stringify(sale)}, "${idPedido}")'>📋 Copiar Resumo</button>
             </td>
           `;
           tbody.appendChild(tr);
@@ -88,17 +89,18 @@
       }
     }
 
-    function copyOrderSummary(sale) {
-      const id = sale.id || '';
+    function copyOrderSummary(sale, idPedido) {
       const cliente = sale.customer?.companyName || 'Cliente';
       const total = Number(sale.totalAmount || 0).toFixed(2);
       
-      let texto = `Olá *${cliente}*, segue o resumo do seu pedido #${id}:\n`;
+      let texto = `Olá *${cliente}*, segue o resumo do seu pedido *${idPedido}*:\n`;
       
       if (sale.items && Array.isArray(sale.items)) {
         sale.items.forEach(i => {
-          const nomeProd = i.product?.name || 'Produto';
-          texto += `- ${i.quantity}x ${nomeProd} (R$ ${Number(i.usedPrice || 0).toFixed(2)})\n`;
+          const nomeProd = i.product?.name || i.name || 'Produto';
+          const qtd = i.quantity || 1;
+          const precoItem = Number(i.usedPrice || i.price || 0).toFixed(2);
+          texto += `- ${qtd}x ${nomeProd} (R$ ${precoItem})\n`;
         });
       }
       
