@@ -6,9 +6,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Credenciais oficiais da SmartPOS baseadas na documentação da API
-const API_KEY_ID = process.env.SMARTPOS_KEY_ID || '6b1e922c-c6fa-43d5-a8f0-06272ad2211e';
-const API_KEY_SECRET = process.env.SMARTPOS_KEY_SECRET || 'SEU_KEY_SECRET_AQUI';
+// Credenciais oficiais da SmartPOS configuradas
+const API_KEY_ID = '6b1e922c-c6fa-43d5-a8f0-06272ad2211e';
+const API_KEY_SECRET = 'EwFwjyG-N9LvbpYLfT2MShsB2eFUyRCVHPJwaY7em8N5UO3Fsw6gvv6jjKgAS80tCyqbHWMob8dZjJK6TBSE7A';
 const SMARTPOS_BASE_URL = 'https://api.smartpos.app/v1';
 
 const client = axios.create({
@@ -21,24 +21,24 @@ const client = axios.create({
   }
 });
 
-// Rota de busca de produtos (exige page e size conforme documentação)
+// Rota de busca de produtos (exige page e size conforme a documentação)
 app.get('/api/produtos', async (req, res) => {
   try {
     const { search } = req.query;
     
     const params = {
       page: 1,
-      size: 50
+      size: 100
     };
     
     if (search) {
-      params.name = search; // Filtro correto pelo nome do produto
+      params.name = search; // Filtro oficial por nome do produto
     }
 
     const response = await client.get('/products', { params });
     const rawData = response.data;
     
-    // A API retorna um objeto paginado contendo 'items'
+    // Extrai a lista de produtos da resposta paginada
     const listaProdutos = Array.isArray(rawData) 
       ? rawData 
       : (rawData?.items || rawData?.data || []);
