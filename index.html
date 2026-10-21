@@ -3,167 +3,114 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDV SmartPOS - Digisac</title>
+  <title>Painel de Pedidos - SmartPOS</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 10px; padding: 0; background-color: #f9f9f9; }
-    h3 { margin-top: 0; color: #333; font-size: 16px; }
-    .input-group { margin-bottom: 10px; }
-    input, select, button { width: 100%; padding: 8px; box-sizing: border-box; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; }
-    .row { display: flex; gap: 10px; }
-    .row .input-group { flex: 1; }
-    button { background-color: #0084FF; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 8px; }
-    button:hover { background-color: #0066cc; }
-    .cart { margin-top: 15px; background: white; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
-    .cart-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
-    .total { font-weight: bold; font-size: 14px; text-align: right; margin-top: 10px; color: #222; }
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
+    h2 { color: #007bff; margin-bottom: 5px; }
+    p.subtitle { color: #666; margin-top: 0; }
+    button { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button:hover { background-color: #218838; }
+    .table-container { background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 15px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 14px; }
+    th { background-color: #007bff; color: white; }
+    tr:hover { background-color: #f1f1f1; }
+    .btn-zap { background-color: #25d366; }
+    .btn-zap:hover { background-color: #1ebe5d; }
   </style>
 </head>
 <body>
 
-  <h3>PDV SmartPOS</h3>
+  <h2>Painel de Pedidos - SmartPOS</h2>
+  <p class="subtitle">Consulte os pedidos feitos no celular para enviar pelo WhatsApp no computador.</p>
 
-  <div class="row">
-    <div class="input-group">
-      <label>Atendente:</label>
-      <select id="sellerSelect">
-        <option value="Jordan">Jordan</option>
-        <option value="Joel">Joel</option>
-        <option value="Alejandro">Alejandro</option>
-        <option value="Mario">Mario</option>
-        <option value="Luis Miguel">Luis Miguel</option>
-        <option value="VILMA">VILMA</option>
-      </select>
-    </div>
-    <div class="input-group">
-      <label>Cliente (Opcional):</label>
-      <input type="text" id="customerInput" placeholder="Nome do cliente...">
-    </div>
-  </div>
+  <button onclick="loadSales()">🔄 Atualizar Lista de Pedidos</button>
 
-  <div class="input-group">
-    <label>Buscar Produto:</label>
-    <input type="text" id="searchInput" placeholder="Digite o nome..." onkeyup="searchProduct()">
-    <select id="productSelect"></select>
-  </div>
-
-  <div class="input-group">
-    <label>Quantidade (Metros / Unidades):</label>
-    <input type="text" id="qtyInput" value="1" placeholder="Ex: 1.555">
-    <button onclick="addToCart()">Adicionar ao Pedido</button>
-  </div>
-
-  <div class="cart">
-    <h4>Itens no Pedido:</h4>
-    <div id="cartItems">Nenhum item adicionado.</div>
-    <div class="total" id="cartTotal">Total: R$ 0,00</div>
-  </div>
-
-  <div class="input-group" style="margin-top: 15px;">
-    <button onclick="createSale('OPEN')" style="background-color: #f39c12;">Criar Pedido em Aberto</button>
-    <button onclick="createSale('CLOSED')" style="background-color: #27ae60;">Finalizar e Emitir NFC-e</button>
+  <div class="table-container">
+    <table id="salesTable">
+      <thead>
+        <tr>
+          <th>ID / Pedido</th>
+          <th>Cliente</th>
+          <th>Atendedor</th>
+          <th>Total (R$)</th>
+          <th>Data</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="6" style="text-align: center;">Carregando pedidos...</td></tr>
+      </tbody>
+    </table>
   </div>
 
   <script>
     const API_URL = 'https://smartpos-digisac.onrender.com/api';
-    let cart = [];
-    let products = [];
 
-    async function searchProduct() {
-      const q = document.getElementById('searchInput').value;
-      if (q.length < 2) return;
-      
+    async function loadSales() {
+      const tbody = document.querySelector('#salesTable tbody');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Buscando pedidos...</td></tr>';
+
       try {
-        const res = await fetch(`${API_URL}/produtos?search=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        
-        products = Array.isArray(data) ? data : [];
-        const select = document.getElementById('productSelect');
-        select.innerHTML = '';
-        
-        if (products.length === 0) {
-          const opt = document.createElement('option');
-          opt.textContent = 'Nenhum produto encontrado';
-          select.appendChild(opt);
+        const res = await fetch(`${API_URL}/pedidos-abertos`);
+        const sales = await res.json();
+
+        if (!Array.isArray(sales) || sales.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum pedido encontrado nos últimos dias.</td></tr>';
           return;
         }
 
-        products.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.id;
-          const preco = Number(p.price || 0).toFixed(2);
-          opt.textContent = `${p.name} - R$ ${preco}`;
-          select.appendChild(opt);
+        tbody.innerHTML = '';
+        sales.forEach(sale => {
+          const tr = document.createElement('tr');
+          
+          const id = sale.id || 'N/D';
+          const cliente = sale.customer?.companyName || sale.customer?.fantasyName || 'Cliente não identificado';
+          const atendente = sale.seller?.name || 'Não informado';
+          const total = Number(sale.totalAmount || 0).toFixed(2);
+          const data = sale.creationDate ? new Date(sale.creationDate).toLocaleString('pt-BR') : 'N/D';
+
+          tr.innerHTML = `
+            <td><b>#${id}</b></td>
+            <td>${cliente}</td>
+            <td>${atendente}</td>
+            <td>R$ ${total}</td>
+            <td>${data}</td>
+            <td>
+              <button class="btn-zap" onclick='copyOrderSummary(${JSON.stringify(sale)})'>📋 Copiar Resumo</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
         });
       } catch (e) {
-        console.error('Erro ao buscar produtos:', e);
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Erro ao conectar com o servidor.</td></tr>';
       }
     }
 
-    function addToCart() {
-      const select = document.getElementById('productSelect');
-      const productId = select.value;
-      let qtyStr = document.getElementById('qtyInput').value.replace(',', '.');
-      const qty = parseFloat(qtyStr) || 1;
+    function copyOrderSummary(sale) {
+      const id = sale.id || '';
+      const cliente = sale.customer?.companyName || 'Cliente';
+      const total = Number(sale.totalAmount || 0).toFixed(2);
       
-      const product = products.find(p => p.id == productId);
-      if (!product) return;
-
-      const price = Number(product.price || 0);
-      cart.push({ id: product.id, name: product.name, price: price, quantity: qty });
-      renderCart();
-    }
-
-    function renderCart() {
-      const container = document.getElementById('cartItems');
-      const totalEl = document.getElementById('cartTotal');
-      if (cart.length === 0) {
-        container.innerHTML = 'Nenhum item adicionado.';
-        totalEl.textContent = 'Total: R$ 0,00';
-        return;
-      }
-
-      let total = 0;
-      container.innerHTML = '';
-      cart.forEach((item) => {
-        const itemTotal = item.price * item.quantity;
-        total += itemTotal;
-        container.innerHTML += `<div class="cart-item">
-          <span>${item.quantity}x ${item.name}</span>
-          <span>R$ ${itemTotal.toFixed(2)}</span>
-        </div>`;
-      });
-
-      totalEl.textContent = `Total: R$ ${total.toFixed(2)}`;
-    }
-
-    async function createSale(status) {
-      if (cart.length === 0) {
-        alert('Adicione produtos ao pedido antes de enviar!');
-        return;
-      }
-
-      const sellerName = document.getElementById('sellerSelect').value;
-      const customerName = document.getElementById('customerInput').value;
-
-      try {
-        const response = await fetch(`${API_URL}/vendas`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: cart, status, sellerName, customerName })
+      let texto = `Olá *${cliente}*, segue o resumo do seu pedido #${id}:\n`;
+      
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach(i => {
+          const nomeProd = i.product?.name || 'Produto';
+          texto += `- ${i.quantity}x ${nomeProd} (R$ ${Number(i.usedPrice || 0).toFixed(2)})\n`;
         });
-
-        const result = await response.json();
-        if (response.ok && result.success) {
-          alert(status === 'OPEN' ? 'Pedido aberto no caixa com sucesso!' : 'Venda finalizada com sucesso!');
-          cart = [];
-          renderCart();
-        } else {
-          alert('Erro ao registrar venda: ' + (result.details?.detalhe || result.error || 'Verifique os dados.'));
-        }
-      } catch (e) {
-        alert('Erro de conexão com o servidor.');
       }
+      
+      texto += `\n*Total: R$ ${total}*`;
+
+      navigator.clipboard.writeText(texto).then(() => {
+        alert('Resumo do pedido copiado com sucesso! Agora basta colar (Ctrl+V) no chat do WhatsApp da Digisac.');
+      });
     }
+
+    // Carrega ao abrir a página
+    loadSales();
   </script>
 </body>
 </html>
