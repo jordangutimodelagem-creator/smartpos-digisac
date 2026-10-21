@@ -24,14 +24,14 @@
 
   <div class="row">
     <div class="input-group">
-      <label>Atendente / Fornecedor:</label>
+      <label>Atendente:</label>
       <select id="sellerSelect">
         <option value="">Carregando atendentes...</option>
       </select>
     </div>
     <div class="input-group">
       <label>Cliente:</label>
-      <input type="text" id="customerInput" placeholder="Digite o nome do cliente...">
+      <input type="text" id="customerInput" placeholder="Nome do cliente...">
     </div>
   </div>
 
@@ -63,7 +63,6 @@
     let cart = [];
     let products = [];
 
-    // Carrega os fornecedores/atendentes ao abrir a página
     async function loadSuppliers() {
       try {
         const res = await fetch(`${API_URL}/fornecedores`);
@@ -71,16 +70,21 @@
         const select = document.getElementById('sellerSelect');
         select.innerHTML = '<option value="">Selecione o atendente...</option>';
         
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           data.forEach(s => {
             const opt = document.createElement('option');
-            opt.value = s.companyName || s.fantasyName || 'Atendente';
-            opt.textContent = s.companyName || s.fantasyName || 'Atendente';
+            const nome = s.companyName || s.fantasyName || s.name || 'Atendente';
+            opt.value = nome;
+            opt.textContent = nome;
             select.appendChild(opt);
           });
+        } else {
+          // Fallback se não vier nada da API
+          select.innerHTML = '<option value="Jordan">Jordan</option>';
         }
       } catch (e) {
         console.error('Erro ao carregar atendentes:', e);
+        document.getElementById('sellerSelect').innerHTML = '<option value="Jordan">Jordan</option>';
       }
     }
 
