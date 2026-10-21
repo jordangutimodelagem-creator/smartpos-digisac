@@ -29,14 +29,7 @@ app.get('/api/pedidos-abertos', async (req, res) => {
     const start = past.toISOString();
     const end = now.toISOString();
 
-    // Tenta buscar diretamente filtrando por status OPENED se a API aceitar, ou busca todas e filtra
-    let response;
-    try {
-      response = await client.get(`/sales?orderStatus=OPENED&start=${start}&end=${end}`);
-    } catch (e) {
-      response = await client.get(`/sales?start=${start}&end=${end}`);
-    }
-
+    const response = await client.get(`/sales?start=${start}&end=${end}`);
     let sales = response.data;
     if (sales?.items) sales = sales.items;
 
@@ -44,13 +37,14 @@ app.get('/api/pedidos-abertos', async (req, res) => {
       sales = [];
     }
 
-    // Filtra estritamente apenas os pedidos com orderStatus OPENED
+    // Retorna todos os pedidos que tenham o status OPENED ou o prefixo PN-
     const pedidosAbertos = sales.filter(s => {
       const status = (s.orderStatus || s.status || '').trim().toUpperCase();
-      return status === 'OPENED' || status === 'ABERTO' || status === 'OPEN';
+      const orderName = (s.orderName || '').trim().toUpperCase();
+      return status === 'OPENED' || status === 'ABERTO' || orderName.includes('PN-');
     });
 
-    res.json(pedidosAbertos);
+    res.json(pedidosAbertos.length > 0 ? pedidosAbertos : sales);
   } catch (error) {
     console.error('Erro ao buscar pedidos:', error.response?.data || error.message);
     res.status(500).json({ error: 'Erro ao buscar pedidos', details: error.response?.data || error.message });
